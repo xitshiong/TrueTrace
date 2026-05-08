@@ -78,7 +78,9 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
     // Stage 2: Gemini Multimodal Analysis
     const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
 
+    const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const prompt = `You are a forensic media analyst. Analyze this image for signs of manipulation or AI generation.
+IMPORTANT CONTEXT: The current date is ${currentDate}. Documents or receipts with dates up to this date are completely valid and should NOT be flagged as 'future' or 'manipulated' simply because of their date.
 
 Examine:
 - Lighting consistency and shadow geometry
