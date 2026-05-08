@@ -4,13 +4,13 @@ import multer from 'multer';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import exifr from 'exifr';
 import dotenv from 'dotenv';
-import fs from 'fs/promises';
 import crypto from 'crypto';
 
 dotenv.config();
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+// Use memoryStorage instead of disk dest for Vercel compatibility
+const upload = multer({ storage: multer.memoryStorage() });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.use(cors());
@@ -18,7 +18,6 @@ app.use(express.json());
 
 // Hash check simulation (mock registry)
 const KNOWN_HASHES = new Set([
-  // Add some fake hashes for demo - in production this would be a real database
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 ]);
 
@@ -32,8 +31,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image uploaded' });
     }
 
-    const imagePath = req.file.path;
-    const imageBuffer = await fs.readFile(imagePath);
+    const imageBuffer = req.file.buffer;
 
     // Stage 1: Hash Check
     const imageHash = calculateHash(imageBuffer);
@@ -43,7 +41,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
     let metadata = 'No metadata available';
     let hasRichExif = false;
     try {
-      const exif = await exifr.parse(imagePath);
+      const exif = await exifr.parse(imageBuffer);
       if (exif) {
         const camera = exif.Make && exif.Model ? `${exif.Make} ${exif.Model}` : 'Unknown Camera';
         const aperture = exif.FNumber ? `f/${exif.FNumber}` : '';
@@ -58,7 +56,6 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
 
     // If hash matches, skip Gemini
     if (hashMatch) {
-      await fs.unlink(imagePath);
       return res.json({
         stage1: 'pass',
         stage2: 'skipped',
@@ -135,9 +132,6 @@ Be precise. Base severity on actual anomalies detected.`;
 
     trustScore = Math.round(trustScore);
 
-    // Cleanup
-    await fs.unlink(imagePath);
-
     res.json({
       stage1: 'flagged',
       stage2: stage3 === 'verified' ? 'pass' : 'flagged',
@@ -151,16 +145,6 @@ Be precise. Base severity on actual anomalies detected.`;
 
   } catch (error) {
     console.error('Analysis error:', error);
-
-    // Cleanup on error
-    if (req.file) {
-      try {
-        await fs.unlink(req.file.path);
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }
-
     res.status(500).json({
       error: 'Analysis failed',
       details: error.message
@@ -168,7 +152,11 @@ Be precise. Base severity on actual anomalies detected.`;
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`TrueTrace server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`TrueTrace server running on port ${PORT}`);
+  });
+}
+
+export default app;

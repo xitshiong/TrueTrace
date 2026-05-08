@@ -54,7 +54,7 @@ const App = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('http://localhost:3001/api/analyze', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         body: formData
       });
