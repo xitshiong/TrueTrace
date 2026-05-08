@@ -8,6 +8,13 @@ import crypto from 'crypto';
 
 dotenv.config();
 
+// Disable Vercel's default body parser so Multer can process the file upload stream
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 const app = express();
 // Use memoryStorage instead of disk dest for Vercel compatibility
 const upload = multer({ storage: multer.memoryStorage() });
