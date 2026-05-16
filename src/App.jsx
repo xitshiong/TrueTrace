@@ -170,7 +170,7 @@ const App = () => {
                         <div className="node-label">
                           {label}
                           {stage === 'stage2' && status === 'running' && (
-                            <span className="gemini-badge">◆ GEMINI 1.5 PRO</span>
+                            <span className="gemini-badge">◆ GEMINI 2.5 FLASH</span>
                           )}
                         </div>
                         <div className="node-status">
@@ -209,7 +209,7 @@ const App = () => {
             <section className={`gemini-panel ${showGeminiPanel ? 'visible' : ''}`}>
               <div className="panel-header">
                 <span className="panel-icon">◆</span> GEMINI MULTIMODAL ANALYSIS
-                <span className="panel-model">MODEL: gemini-3.1-flash-lite</span>
+                <span className="panel-model">MODEL: google/gemini-2.5-flash</span>
               </div>
               <div className="panel-content">
                 <div className="panel-left">

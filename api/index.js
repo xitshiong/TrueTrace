@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import exifr from 'exifr';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
@@ -18,7 +18,10 @@ export const config = {
 const app = express();
 // Use memoryStorage instead of disk dest for Vercel compatibility
 const upload = multer({ storage: multer.memoryStorage() });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
 
 app.use(cors());
 app.use(express.json());
@@ -75,9 +78,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
       });
     }
 
-    // Stage 2: Gemini Multimodal Analysis
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-
+    // Stage 2: OpenRouter Multimodal Analysis
     const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const prompt = `You are a forensic media analyst. Analyze this image for signs of manipulation or AI generation.
 IMPORTANT CONTEXT: The current date is ${currentDate}. Documents or receipts with dates up to this date are completely valid and should NOT be flagged as 'future' or 'manipulated' simply because of their date.
@@ -105,15 +106,22 @@ Respond ONLY with valid JSON in this exact format:
 
 Be precise. Base severity on actual anomalies detected.`;
 
-    const imagePart = {
-      inlineData: {
-        data: imageBuffer.toString('base64'),
-        mimeType: req.file.mimetype
-      }
-    };
+    const base64Image = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
 
-    const result = await model.generateContent([prompt, imagePart]);
-    const responseText = result.response.text();
+    const response = await openai.chat.completions.create({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: base64Image } }
+          ]
+        }
+      ]
+    });
+    
+    const responseText = response.choices[0].message.content;
 
     // Parse JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
